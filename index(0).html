@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>لوحة المشرف - SEOUDY ELECTRIC</title><link rel="stylesheet" href="../styles.css"></head>
+<body>
+<div class="container" style="max-width:1000px;margin:24px auto">
+  <div class="card">
+    <h2 style="color:#fff">لوحة المشرف</h2>
+    <div id="auth-section">
+      <h3 style="color:#e6eef6">تسجيل دخول</h3>
+      <form id="login-form" style="display:grid;gap:8px;max-width:420px">
+        <input id="email" type="email" placeholder="البريد" required value="elmshrky666666@gmail.com">
+        <input id="password" type="password" placeholder="كلمة المرور" required value="asm1980ASM">
+        <button id="login-btn" class="btn">دخول</button>
+        <div id="auth-error" style="color:#ff6b6b"></div>
+      </form>
+    </div>
+    <div id="panel" style="display:none">
+      <h3 style="color:#e6eef6">إعدادات الموقع</h3>
+      <form id="settings-form" style="display:grid;gap:8px">
+        <label style="color:#cbd5e1">عنوان الموقع<input id="site-title" /></label>
+        <label style="color:#cbd5e1">شعار<input id="site-tagline" /></label>
+        <button id="save-settings" class="btn">حفظ</button>
+      </form>
+      <hr style="border-color:rgba(255,255,255,0.06)">
+      <h3 style="color:#e6eef6">إدارة الإعلانات</h3>
+      <form id="ad-form" style="display:grid;gap:8px">
+        <input id="ad-title" placeholder="عنوان الإعلان" required />
+        <input id="ad-file" type="file" accept="image/*" />
+        <button id="add-ad" class="btn">أضف إعلان</button>
+      </form>
+      <div id="ads-list"></div>
+      <button id="logout" class="btn" style="background:#ff7a7a;margin-top:12px">تسجيل خروج</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDSLjVadCLCEcr9KTiNuFGN4Q568hfn-1Q",
+  authDomain: "seoudy-electric.firebaseapp.com",
+  projectId: "seoudy-electric",
+  storageBucket: "seoudy-electric.firebasestorage.app",
+  messagingSenderId: "760207696196",
+  appId: "1:760207696196:web:256ed9afd0069206167711",
+  measurementId: "G-T222JFJLM5"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+const loginForm = document.getElementById('login-form');
+const emailInput = document.getElementById('email');
+const passInput = document.getElementById('password');
+const authError = document.getElementById('auth-error');
+const panel = document.getElementById('panel');
+const authSection = document.getElementById('auth-section');
+const logoutBtn = document.getElementById('logout');
+const settingsForm = document.getElementById('settings-form');
+const siteTitle = document.getElementById('site-title');
+const siteTagline = document.getElementById('site-tagline');
+const adForm = document.getElementById('ad-form');
+const adFile = document.getElementById('ad-file');
+const adTitle = document.getElementById('ad-title');
+const adsList = document.getElementById('ads-list');
+
+onAuthStateChanged(auth, user=>{
+  if(user){
+    authSection.style.display='none'; panel.style.display='block';
+    loadSettings(); loadAds();
+  }else{
+    authSection.style.display='block'; panel.style.display='none';
+  }
+});
+
+loginForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  authError.textContent='';
+  try{
+    await signInWithEmailAndPassword(auth, emailInput.value, passInput.value);
+  }catch(err){
+    authError.textContent = err.message;
+  }
+});
+
+logoutBtn.addEventListener('click', async ()=>{ await signOut(auth); });
+
+async function loadSettings(){
+  const docRef = doc(db,'site','config');
+  const snap = await getDoc(docRef);
+  if(snap.exists()){
+    const data = snap.data();
+    siteTitle.value = data.title || 'SEOUDY ELECTRIC';
+    siteTagline.value = data.tagline || 'صيانة وبرمجة احترافية';
+  }else{
+    await setDoc(docRef,{title:'SEOUDY ELECTRIC',tagline:'صيانة وبرمجة احترافية'});
+    siteTitle.value='SEOUDY ELECTRIC'; siteTagline.value='صيانة وبرمجة احترافية';
+  }
+}
+
+settingsForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  await setDoc(doc(db,'site','config'),{title:siteTitle.value,tagline:siteTagline.value});
+  alert('تم الحفظ');
+});
+
+async function loadAds(){
+  adsList.innerHTML='';
+  const q = await getDocs(collection(db,'ads'));
+  q.forEach(docu=>{
+    const d = docu.data();
+    const el = document.createElement('div');
+    el.style.display='flex'; el.style.gap='12px'; el.style.alignItems='center'; el.style.marginTop='8px';
+    const img = document.createElement('img'); img.src = d.image || ''; img.style.width='120px'; img.style.height='80px'; img.style.objectFit='cover'; img.style.borderRadius='8px';
+    const title = document.createElement('div'); title.innerHTML = '<strong>'+ (d.title||'') +'</strong>';
+    el.appendChild(img); el.appendChild(title);
+    adsList.appendChild(el);
+  });
+}
+
+adForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const file = adFile.files[0];
+  if(!file){ alert('اختر صورة'); return; }
+  const storageRef = sRef(storage, 'ads/' + file.name);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  await addDoc(collection(db,'ads'),{title:adTitle.value,image:url,created: new Date()});
+  adTitle.value=''; adFile.value=''; loadAds();
+  alert('تم إضافة الإعلان');
+});
+</script>
+</body>
+</html>
